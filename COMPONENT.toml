@@ -1,0 +1,16 @@
+[component]
+name = "SigmaOS-rdbms-duckdb"
+tier = 3
+stability = "scaffold"
+language = "rust"
+description = "DuckDB integration for SigmaOS — embedded analytical database, SQL engine, and Parquet/CSV support"
+upstream = ["https://github.com/duckdb/duckdb"]
+
+[contract]
+provides = ["embedded-olap", "analytical-query"]
+depends_on = []
+
+[maturity]
+status = "Scaffold"
+test_evidence = "Compiles"
+next_milestone = "Verification test suite"

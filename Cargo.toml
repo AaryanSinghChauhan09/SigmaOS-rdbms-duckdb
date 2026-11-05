@@ -1,0 +1,9 @@
+[package]
+name = "sigmaos_rdbms_duckdb"
+version = "0.1.0"
+edition = "2021"
+description = "DuckDB integration for SigmaOS — embedded analytical database, SQL engine, and Parquet/CSV support"
+
+[lib]
+name = "sigmaos_rdbms_duckdb"
+path = "src/lib.rs"
