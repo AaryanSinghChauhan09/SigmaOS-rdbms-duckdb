@@ -2,7 +2,8 @@
 name = "sigmaos_rdbms_duckdb"
 version = "0.1.0"
 edition = "2021"
-description = "DuckDB integration for SigmaOS — embedded analytical database, SQL engine, and Parquet/CSV support"
+license = "MIT"
+description = "SigmaOS rdbms-duckdb component inspired by Linux Mint / Omarchy / Arch Linux."
 
 [lib]
 name = "sigmaos_rdbms_duckdb"
