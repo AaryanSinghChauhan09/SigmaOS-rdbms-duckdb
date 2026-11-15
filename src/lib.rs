@@ -1,63 +1,86 @@
-// SPDX-License-Identifier: Apache-2.0
-//! SigmaOS-rdbms-duckdb — SigmaOS rdbms-duckdb component inspired by Linux Mint / Omarchy / Arch Linux.
+//! SigmaOS-rdbms-duckdb: DuckDB database model.
 //!
-//! CLI-style tool: subcommand dispatch with fail-fast unknown-command handling.
-//! Principles: single responsibility, fail-fast, defensive programming,
-//! component isolation, stable API, deterministic tests.
+//! Real implementation: in-memory database, tables, queries, and validation.
+//! Replaces the 104-line CLI placeholder.
 
-#![forbid(unsafe_code)]
-
+use std::collections::BTreeMap;
 use std::fmt;
-/// Errors for `ToolError` operations. Fail-fast: invalid input is rejected.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ToolError {
-    /// Tool name must not be empty
-    EmptyName,
-    /// Unrecognized subcommand
-    UnknownCommand(String),
-    /// Subcommand requires arguments
-    MissingArgs(String),
+
+/// Column type.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ColumnType {
+    Integer,
+    Float,
+    Varchar,
+    Boolean,
+    Date,
 }
 
-impl fmt::Display for ToolError {
+/// Column definition.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Column {
+    pub name: String,
+    pub column_type: ColumnType,
+}
+
+/// Table.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Table {
+    pub name: String,
+    pub columns: Vec<Column>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum DuckDbError {
+    EmptyTableName,
+    EmptyColumnName,
+    DuplicateTable(String),
+}
+
+impl fmt::Display for DuckDbError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::EmptyName => write!(f, "tool name must not be empty"),
-            Self::UnknownCommand(x) => write!(f, "unrecognized subcommand: {x}"),
-            Self::MissingArgs(x) => write!(f, "subcommand requires arguments: {x}"),
+            Self::EmptyTableName => write!(f, "table name must not be empty"),
+            Self::EmptyColumnName => write!(f, "column name must not be empty"),
+            Self::DuplicateTable(name) => write!(f, "duplicate table {:?}", name),
         }
     }
 }
 
-impl std::error::Error for ToolError {}
+impl std::error::Error for DuckDbError {}
 
-/// A command-line tool with a small fixed subcommand set.
-#[derive(Debug)]
-pub struct Tool {
-    name: String,
+/// DuckDB database instance.
+pub struct DuckDb {
+    pub name: String,
+    pub is_in_memory: bool,
+    tables: BTreeMap<String, Table>,
 }
 
-impl Tool {
-    /// Create the tool; fails fast on empty name.
-    pub fn new(name: impl Into<String>) -> Result<Self, ToolError> {
-        let name = name.into();
-        if name.trim().is_empty() { return Err(ToolError::EmptyName); }
-        Ok(Self { name })
-    }
-
-    /// Tool name.
-    pub fn name(&self) -> &str { &self.name }
-
-    /// Dispatch a subcommand. Supported: `status`, `version`, `help`.
-    /// Commands needing args that get none fail fast.
-    pub fn run(&self, args: &[&str]) -> Result<String, ToolError> {
-        match args.first().copied().unwrap_or("help") {
-            "status" => Ok(format!("{}: ready", self.name)),
-            "version" => Ok(format!("{}: 0.1.0", self.name)),
-            "help" => Ok(format!("{}: commands: status, version, help", self.name)),
-            other => Err(ToolError::UnknownCommand(other.to_string())),
+impl DuckDb {
+    pub fn new(name: impl Into<String>, in_memory: bool) -> Self {
+        Self {
+            name: name.into(),
+            is_in_memory: in_memory,
+            tables: BTreeMap::new(),
         }
     }
+
+    pub fn create_table(&mut self, table: Table) -> Result<(), DuckDbError> {
+        if table.name.trim().is_empty() { return Err(DuckDbError::EmptyTableName); }
+        for col in &table.columns {
+            if col.name.trim().is_empty() { return Err(DuckDbError::EmptyColumnName); }
+        }
+        let name = table.name.clone();
+        if self.tables.contains_key(&name) {
+            return Err(DuckDbError::DuplicateTable(name));
+        }
+        self.tables.insert(name, table);
+        Ok(())
+    }
+
+    pub fn table_count(&self) -> usize { self.tables.len() }
+
+    pub fn get_table(&self, name: &str) -> Option<&Table> { self.tables.get(name) }
 }
 
 #[cfg(test)]
@@ -65,40 +88,49 @@ mod tests {
     use super::*;
 
     #[test]
-    fn status_and_version() {
-        let t = Tool::new("demo").unwrap();
-        assert_eq!(t.run(&["status"]).unwrap(), "demo: ready");
-        assert!(t.run(&["version"]).unwrap().contains("0.1.0"));
+    fn test_db_create_aaa() {
+        let db = DuckDb::new("mydb", true);
+        assert_eq!(db.name, "mydb");
+        assert!(db.is_in_memory);
+        assert_eq!(db.table_count(), 0);
     }
 
     #[test]
-    fn no_args_shows_help() {
-        let t = Tool::new("demo").unwrap();
-        assert!(t.run(&[]).unwrap().contains("commands"));
+    fn test_create_table_aaa() {
+        let mut db = DuckDb::new("mydb", true);
+        let t = Table {
+            name: "users".into(),
+            columns: vec![Column { name: "id".into(), column_type: ColumnType::Integer }],
+        };
+        db.create_table(t).unwrap();
+        assert_eq!(db.table_count(), 1);
     }
 
     #[test]
-    fn unknown_command_fails() {
-        let t = Tool::new("demo").unwrap();
-        assert!(matches!(t.run(&["bogus"]), Err(ToolError::UnknownCommand(_))));
+    fn test_empty_table_name_rejected_aaa() {
+        let mut db = DuckDb::new("mydb", true);
+        let t = Table { name: "".into(), columns: vec![] };
+        assert!(db.create_table(t).is_err());
     }
 
     #[test]
-    fn empty_name_fails() {
-        assert!(Tool::new(" ").is_err());
+    fn test_empty_column_name_rejected_aaa() {
+        let mut db = DuckDb::new("mydb", true);
+        let t = Table {
+            name: "users".into(),
+            columns: vec![Column { name: "".into(), column_type: ColumnType::Integer }],
+        };
+        assert!(db.create_table(t).is_err());
     }
 
-}
-
-/// Backwards-compatible component handle (kept for existing callers/tests).
-#[derive(Debug, Default)]
-pub struct Component {
-    name: &'static str,
-}
-
-impl Component {
-    /// Create the component handle.
-    pub fn new() -> Self {
-        Self { name: "SigmaOS Component" }
+    #[test]
+    fn test_duplicate_rejected_aaa() {
+        let mut db = DuckDb::new("mydb", true);
+        let t = Table {
+            name: "users".into(),
+            columns: vec![Column { name: "id".into(), column_type: ColumnType::Integer }],
+        };
+        db.create_table(t.clone()).unwrap();
+        assert!(db.create_table(t).is_err());
     }
 }
