@@ -3,7 +3,7 @@ name = "SigmaOS-rdbms-duckdb"
 tier = 3
 stability = "scaffold"
 language = "rust"
-description = "DuckDB integration for SigmaOS — embedded analytical database, SQL engine, and Parquet/CSV support"
+description = "SigmaOS DuckDB in-process analytics RDBMS component - Rust implementation with AAA tests"
 upstream = ["https://github.com/duckdb/duckdb"]
 
 [contract]
