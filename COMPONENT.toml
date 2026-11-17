@@ -1,7 +1,7 @@
 [component]
 name = "SigmaOS-rdbms-duckdb"
 tier = 3
-stability = "scaffold"
+stability = "beta"
 language = "rust"
 description = "SigmaOS DuckDB in-process analytics RDBMS component - Rust implementation with AAA tests"
 upstream = ["https://github.com/duckdb/duckdb"]
@@ -11,6 +11,6 @@ provides = ["embedded-olap", "analytical-query"]
 depends_on = []
 
 [maturity]
-status = "Scaffold"
+status = "Implemented"
 test_evidence = "Compiles"
 next_milestone = "Verification test suite"
